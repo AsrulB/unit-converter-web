@@ -1,4 +1,7 @@
-use crate::unit::*;
+use crate::unit::{
+    Temperature::{Celcius, Fahrenheit, Kelvin},
+    *,
+};
 use std::collections::HashMap;
 
 pub struct WeightData {
@@ -51,6 +54,40 @@ impl LengthData {
 // To be implemented
 impl TemperatureData {
     pub fn convert(&self) -> f64 {
-        0.0
+        let conversion = (&self.from, &self.to);
+
+        match conversion {
+            (Celcius, Fahrenheit) => Self::celcius_to_fahrenheit(self.num),
+            (Fahrenheit, Celcius) => Self::fahrenheit_to_celcius(self.num),
+            (Celcius, Kelvin) => Self::celcius_to_kelvin(self.num),
+            (Kelvin, Celcius) => Self::kelvin_to_celcius(self.num),
+            (Kelvin, Fahrenheit) => Self::kelvin_to_fahrenheit(self.num),
+            (Fahrenheit, Kelvin) => Self::fahrenheit_to_kelvin(self.num),
+            _ => self.num,
+        }
+    }
+
+    fn celcius_to_fahrenheit(t: f64) -> f64 {
+        t * (9.0 / 5.0) + 32.0
+    }
+
+    fn fahrenheit_to_celcius(t: f64) -> f64 {
+        (t - 32.0) * 5.0 / 9.0
+    }
+
+    fn celcius_to_kelvin(t: f64) -> f64 {
+        t + 273.15
+    }
+
+    fn kelvin_to_celcius(t: f64) -> f64 {
+        t - 273.15
+    }
+
+    fn kelvin_to_fahrenheit(t: f64) -> f64 {
+        (t - 273.15) * 9.0 / 5.0 + 32.0
+    }
+
+    fn fahrenheit_to_kelvin(t: f64) -> f64 {
+        (t - 32.0) * 5.0 / 9.0 + 273.15
     }
 }

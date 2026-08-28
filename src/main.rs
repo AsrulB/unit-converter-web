@@ -1,19 +1,17 @@
 use crate::unit::{
     Length::{self, *},
     Temperature::*,
-    Weight,
-    Weight::{Gram, Kilogram, Milligram},
+    Weight::{self, Gram, Kilogram, Milligram},
 };
-use crate::weight_data::WeightData;
+use crate::unit_data::TemperatureData;
 
 pub mod unit;
-pub mod weight_data;
-
+pub mod unit_data;
 fn main() {
-    let data = WeightData {
-        num: 2.0,
-        from: Gram,
-        to: Milligram,
+    let data = TemperatureData {
+        num: 30.0,
+        from: Celcius,
+        to: Fahrenheit,
     };
     println!("{}", data.convert());
 }
