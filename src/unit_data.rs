@@ -2,6 +2,7 @@ use crate::unit::{
     Temperature::{Celcius, Fahrenheit, Kelvin},
     *,
 };
+use math::round;
 use std::collections::HashMap;
 
 pub struct WeightData {
@@ -26,32 +27,38 @@ impl WeightData {
     pub fn convert(&self) -> f64 {
         let mut map_length = HashMap::new();
         map_length.insert(Weight::Kilogram, 1.0);
+        map_length.insert(Weight::Pound, 0.4536);
+        map_length.insert(Weight::Ounce, 0.02835);
         map_length.insert(Weight::Gram, 0.001);
         map_length.insert(Weight::Milligram, 0.000001);
 
         let in_kg = self.num * map_length[&self.from];
         let conversion = in_kg / map_length[&self.to];
         dbg!(&in_kg);
-        conversion.round()
+        dbg!(&conversion);
+        round::half_away_from_zero(conversion, 3)
     }
 }
 
 impl LengthData {
     pub fn convert(&self) -> f64 {
         let mut map_length = HashMap::new();
+        map_length.insert(Length::Mile, 1.61);
         map_length.insert(Length::Kilometer, 1.0);
         map_length.insert(Length::Meter, 0.001);
+        map_length.insert(Length::Yard, 0.0009144);
+        map_length.insert(Length::Feet, 0.0003048);
+        map_length.insert(Length::Inch, 0.0000254);
         map_length.insert(Length::Centimeter, 0.00001);
         map_length.insert(Length::Millimeter, 0.000001);
 
         let in_km = self.num * map_length[&self.from];
         let conversion = in_km / map_length[&self.to];
-        dbg!(&in_km);
-        conversion.round()
+        dbg!(&conversion);
+        round::half_away_from_zero(conversion, 3)
     }
 }
 
-// To be implemented
 impl TemperatureData {
     pub fn convert(&self) -> f64 {
         let conversion = (&self.from, &self.to);
