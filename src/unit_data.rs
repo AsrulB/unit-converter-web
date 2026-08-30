@@ -4,97 +4,84 @@ use crate::unit::{
 };
 use math::round;
 use std::collections::HashMap;
+use std::hash::Hash;
 
-pub struct WeightData {
-    pub num: f64,
-    pub from: Weight,
-    pub to: Weight,
+pub trait Convertible: Clone + Eq + Hash {
+    fn rate(&self) -> f64;
 }
 
-pub struct LengthData {
-    pub num: f64,
-    pub from: Length,
-    pub to: Length,
+impl Convertible for Weight {
+    fn rate(&self) -> f64 {
+        match self {
+            Weight::Kilogram => 1.0,
+            Weight::Gram => 0.001,
+            Weight::Pound => 0.4536,
+            Weight::Ounce => 0.02835,
+            Weight::Milligram => 0.000001,
+        }
+    }
+}
+
+impl Convertible for Length {
+    fn rate(&self) -> f64 {
+        match self {
+            Length::Mile => 1.61,
+            Length::Kilometer => 1.0,
+            Length::Meter => 0.001,
+            Length::Yard => 0.0009144,
+            Length::Feet => 0.0003048,
+            Length::Inch => 0.0000254,
+            Length::Centimeter => 0.00001,
+            Length::Millimeter => 0.000001,
+        }
+    }
+}
+
+pub struct ConversionData<T: Convertible> {
+    pub from: T,
+    pub to: T,
+    pub value: f64,
+}
+
+impl<T: Convertible> ConversionData<T> {
+    pub fn convert(&self) -> f64 {
+        let base_value = self.value * self.from.rate();
+        let result = base_value / self.to.rate();
+        round::half_away_from_zero(result, 3)
+    }
 }
 
 pub struct TemperatureData {
-    pub num: f64,
+    pub value: f64,
     pub from: Temperature,
     pub to: Temperature,
 }
 
-impl WeightData {
-    pub fn convert(&self) -> f64 {
-        let mut map_length = HashMap::new();
-        map_length.insert(Weight::Kilogram, 1.0);
-        map_length.insert(Weight::Pound, 0.4536);
-        map_length.insert(Weight::Ounce, 0.02835);
-        map_length.insert(Weight::Gram, 0.001);
-        map_length.insert(Weight::Milligram, 0.000001);
-
-        let in_kg = self.num * map_length[&self.from];
-        let conversion = in_kg / map_length[&self.to];
-        dbg!(&in_kg);
-        dbg!(&conversion);
-        round::half_away_from_zero(conversion, 3)
-    }
-}
-
-impl LengthData {
-    pub fn convert(&self) -> f64 {
-        let mut map_length = HashMap::new();
-        map_length.insert(Length::Mile, 1.61);
-        map_length.insert(Length::Kilometer, 1.0);
-        map_length.insert(Length::Meter, 0.001);
-        map_length.insert(Length::Yard, 0.0009144);
-        map_length.insert(Length::Feet, 0.0003048);
-        map_length.insert(Length::Inch, 0.0000254);
-        map_length.insert(Length::Centimeter, 0.00001);
-        map_length.insert(Length::Millimeter, 0.000001);
-
-        let in_km = self.num * map_length[&self.from];
-        let conversion = in_km / map_length[&self.to];
-        dbg!(&conversion);
-        round::half_away_from_zero(conversion, 3)
-    }
-}
-
 impl TemperatureData {
     pub fn convert(&self) -> f64 {
-        let conversion = (&self.from, &self.to);
+        if self.from == self.to {
+            return self.value;
+        }
 
-        match conversion {
-            (Celcius, Fahrenheit) => Self::celcius_to_fahrenheit(self.num),
-            (Fahrenheit, Celcius) => Self::fahrenheit_to_celcius(self.num),
-            (Celcius, Kelvin) => Self::celcius_to_kelvin(self.num),
-            (Kelvin, Celcius) => Self::kelvin_to_celcius(self.num),
-            (Kelvin, Fahrenheit) => Self::kelvin_to_fahrenheit(self.num),
-            (Fahrenheit, Kelvin) => Self::fahrenheit_to_kelvin(self.num),
-            _ => self.num,
+        // convert to Kelvin as the base unit
+        let kelvin = self.to_kelvin(self.value, self.from.clone());
+        // convert from kelvin to target unit
+        self.from_kelvin(kelvin, self.to.clone())
+    }
+
+    fn to_kelvin(&self, value: f64, unit: Temperature) -> f64 {
+        match unit {
+            Temperature::Kelvin => value,
+            Temperature::Celcius => value + 273.15,
+            Temperature::Fahrenheit => (value - 32.0) * 5.0 / 9.0 + 273.15,
         }
     }
 
-    fn celcius_to_fahrenheit(t: f64) -> f64 {
-        t * (9.0 / 5.0) + 32.0
-    }
-
-    fn fahrenheit_to_celcius(t: f64) -> f64 {
-        (t - 32.0) * 5.0 / 9.0
-    }
-
-    fn celcius_to_kelvin(t: f64) -> f64 {
-        t + 273.15
-    }
-
-    fn kelvin_to_celcius(t: f64) -> f64 {
-        t - 273.15
-    }
-
-    fn kelvin_to_fahrenheit(t: f64) -> f64 {
-        (t - 273.15) * 9.0 / 5.0 + 32.0
-    }
-
-    fn fahrenheit_to_kelvin(t: f64) -> f64 {
-        (t - 32.0) * 5.0 / 9.0 + 273.15
+    fn from_kelvin(&self, kelvin: f64, unit: Temperature) -> f64 {
+        match unit {
+            Temperature::Kelvin => kelvin,
+            Temperature::Celcius => kelvin - 273.15,
+            Temperature::Fahrenheit => (kelvin - 273.15) * 9.0 / 5.0 + 32.0,
+        }
     }
 }

@@ -1,4 +1,4 @@
-#[derive(Hash, PartialEq, Eq, Debug)]
+#[derive(Clone, Hash, PartialEq, Eq, Debug)]
 pub enum Length {
     Mile,
     Kilometer,
@@ -10,7 +10,7 @@ pub enum Length {
     Millimeter,
 }
 
-#[derive(Hash, PartialEq, Eq, Debug)]
+#[derive(Clone, Hash, PartialEq, Eq, Debug)]
 pub enum Weight {
     Pound,
     Ounce,
@@ -19,7 +19,7 @@ pub enum Weight {
     Milligram,
 }
 
-#[derive(Hash, PartialEq, Eq, Debug)]
+#[derive(Clone, Hash, PartialEq, Eq, Debug)]
 pub enum Temperature {
     Celcius,
     Fahrenheit,
