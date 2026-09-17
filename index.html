@@ -1,0 +1,110 @@
+<!Doctype html>
+<html>
+    <head>
+        <meta charset="utf-8">
+        <title>Hello!</title>
+
+        <style>
+
+            body {
+                min-width: 600px;
+                border: black;
+                display: flex;
+                flex-direction: column;
+                justify-content: center;
+                align-items: center;
+                background-color: darkgray;
+                font-family: Jetbrains-mono, monospace;
+            }
+
+            div {
+                width: 100%;
+                display: flex;
+                justify-content: center;
+                gap: 10px;
+            }
+
+            option, select, input {
+                font-size: 1.1rem;
+            }
+
+
+
+        </style>
+    </head>
+    <body>
+        <header>
+            <h1>Unit Converter</h1>
+        </header>
+        <div>
+            <h3>Length</h3>
+            <h3>Weight</h3>
+            <h3>Temperature</h3>
+        </div>
+        <form id="myForm" method="post">
+
+            <fieldset>
+
+                <label for="value_id">Value</label><br>
+                <input type="number" id="value_id" name="value" required><br><br>
+                <!-- from unit dropdown -->
+                <label for="from">From Unit</label><br>
+                <select name="from_unit" id="from">
+                    <option value="kilogram" selected>Kilogram</option>
+                    <option value="pound">Pound</option>
+                    <option value="gram">Gram</option>
+                    <option value="ounce">Ounce</option>
+                    <option value="milligram">Milligram</option>
+                </select><br><br>
+                <!-- to unit dropdown -->
+                <label for="to">To Unit</label><br>
+                <select name="to_unit" id="to">
+                    <option value="kilogram" selected>Kilogram</option>
+                    <option value="pound">Pound</option>
+                    <option value="gram">Gram</option>
+                    <option value="ounce">Ounce</option>
+                    <option value="milligram">Milligram</option>
+                </select><br><br>
+                <input type="submit" value="Submit">
+            </fieldset>
+        </form>
+
+        <div id="message"></div>
+
+        <script>
+
+            const form = document.getElementById('myForm');
+
+            const messageDiv = document.getElementById('message');
+            form.addEventListener('submit', async (event) => {
+                event.preventDefault();
+
+
+                const data = Object.fromEntries(new FormData(form));
+                console.log('Sending data:', data);
+                // navigator.sendBeacon('/submit-conversion', JSON.stringify(data));
+
+                try {
+                    const response = await fetch('/submit-conversion', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(data)
+                    });
+
+                    const result = await response.json();
+                    console.log('Response from backend:', result);
+
+                    if (result.redirect_url) {
+                      window.location.href = result.redirect_url;
+                    }
+
+                } catch (error) {
+                    console.error('Error:', error);
+                    messageDiv.className = 'error';
+                    messageDiv.textContent = 'Error: ' + error.message;
+                }
+            });
+
+        </script>
+    </body>
+</html>
