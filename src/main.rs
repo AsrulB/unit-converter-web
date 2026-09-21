@@ -1,21 +1,26 @@
 use crate::unit_data::ConversionData;
 use serde_json::{Value, json};
 use std::borrow::Cow;
+use std::collections::HashMap;
 use std::fs;
 use std::io::{Read, Write};
 use std::net::{TcpListener, TcpStream};
-use std::thread;
+use std::sync::{Arc, Mutex};
 
 pub mod unit;
 pub mod unit_data;
 
+type Db = Arc<Mutex<HashMap<String, String>>>;
+
 fn main() -> std::io::Result<()> {
     let listener = TcpListener::bind("127.0.0.1:8080")?;
+    let db: Db = Arc::new(Mutex::new(HashMap::new()));
 
     for stream in listener.incoming() {
         match stream {
             Ok(stream) => {
-                thread::spawn(|| handle_connection(stream));
+                let db_clone = Arc::clone(&db);
+                handle_connection(stream, db_clone);
             }
             Err(e) => {
                 eprintln!("Connection error: {}", e);
@@ -26,48 +31,24 @@ fn main() -> std::io::Result<()> {
     Ok(())
 }
 
-fn handle_connection(mut stream: TcpStream) {
+fn handle_connection(mut stream: TcpStream, db: Db) {
     let mut buffer = [0; 4096];
-    let value_storage: Value = Default::default();
+    // let mut value_storage: Value = Default::default();
     match stream.read(&mut buffer) {
         Ok(n) => {
             let request = String::from_utf8_lossy(&buffer[..n]);
             println!("Request:\n{}\n", request);
 
             // Extract first line of HTTP request (e.g., "GET / HTTP/1.1")
-            let mut lines = request.lines();
-            let request_line = match lines.next() {
-                None => return,
-                Some(line) => line,
-            };
-
-            let parts: Vec<&str> = request_line.split_whitespace().collect();
-            if parts.len() < 2 {
-                return;
-            }
-
-            let method = parts[0];
-            let path_and_query = parts[1];
-
-            println!("method: {}, query: {}", method, path_and_query);
+            let (method, path_and_query) = parse_request_line(&request).unwrap_or_default();
 
             // GET request - serve index.html
             if method == "GET" && path_and_query == "/" {
                 display_home(&mut stream);
             } else if method == "POST" && path_and_query == "/submit-conversion" {
-                process_data(&mut stream, &request, value_storage);
+                process_data(&mut stream, &request, db);
             } else if method == "GET" && path_and_query.starts_with("/conversion") {
-                let template = fs::read_to_string("result.html").unwrap_or_default();
-
-                let response = format!(
-                    "HTTP/1.1 200 OK\r\nContent-Type: text/html\r\nContent-Length: {}\r\n\r\n{}",
-                    template.len(),
-                    template
-                );
-
-                println!("why not render this");
-                stream.write_all(response.as_bytes()).ok();
-                stream.flush().ok();
+                display_result_page(&mut stream, db);
             } else {
                 let error_json = json!({
                     "success": false,
@@ -75,15 +56,6 @@ fn handle_connection(mut stream: TcpStream) {
                 });
                 send_json_response(&mut stream, 404, &error_json);
             }
-
-            // Check if it's a POST request with JSON body (form submission)
-            // if request.starts_with("POST") {
-            //     process_data(&mut stream, &request);
-            // }
-            // GET request - serve index.html
-            // else if request.starts_with("GET") {
-            //     display_home(&mut stream);
-            // }
         }
         Err(e) => {
             eprintln!("Read error: {}", e);
@@ -91,7 +63,53 @@ fn handle_connection(mut stream: TcpStream) {
     }
 }
 
-fn process_data(stream: &mut TcpStream, request: &Cow<'_, str>, mut _storage: Value) {
+fn display_result_page(stream: &mut TcpStream, db: Db) {
+    let db_guard = db.lock().unwrap();
+
+    let value = db_guard
+        .get(&"value".to_string())
+        .cloned()
+        .unwrap_or_default();
+    let from = db_guard
+        .get(&"from".to_string())
+        .cloned()
+        .unwrap_or_default();
+    let to = db_guard.get(&"to".to_string()).cloned().unwrap_or_default();
+
+    let args = format!("Value: {},\nFrom: {},\nTo: {}", value, from, to);
+    let template = fs::read_to_string("result.html")
+        .map(|s| s.replace("RUST", &args))
+        .unwrap_or_default();
+
+    let response = format!(
+        "HTTP/1.1 200 OK\r\nContent-Type: text/html\r\nContent-Length: {}\r\n\r\n{}",
+        template.len(),
+        template,
+    );
+
+    stream.write_all(response.as_bytes()).ok();
+    stream.flush().ok();
+}
+
+fn parse_request_line(request: &Cow<'_, str>) -> Option<(String, String)> {
+    let mut lines = request.lines();
+    let request_line = match lines.next() {
+        None => return None,
+        Some(line) => line,
+    };
+
+    let parts: Vec<&str> = request_line.split_whitespace().collect();
+    if parts.len() < 2 {
+        return None;
+    }
+
+    let method = parts[0].to_string();
+    let path_and_query = parts[1].to_string();
+
+    Some((method, path_and_query))
+}
+
+fn process_data(stream: &mut TcpStream, request: &Cow<'_, str>, db: Db) {
     if let Some(body) = extract_body(&request) {
         println!("Body request {}", body);
 
@@ -115,14 +133,26 @@ fn process_data(stream: &mut TcpStream, request: &Cow<'_, str>, mut _storage: Va
                     send_json_response(stream, 400, &error_json);
                 }
                 Some(data) => {
-                    _storage = data.clone();
+                    let vals = data.get("data").unwrap_or_default().clone();
+                    println!("STORAGE: {}", vals);
 
                     if let Some(datas) = data.get("data") {
                         println!("{}", datas.to_string());
-                        let from = datas.get("from").unwrap();
-                        let to = datas.get("to").unwrap();
-                        let value = datas.get("value").unwrap();
-                        // send_json_response(stream, 200, &data);
+
+                        let from = datas.get("from").and_then(|v| v.as_str()).unwrap();
+                        let to = datas.get("to").and_then(|v| v.as_str()).unwrap();
+                        let value = datas
+                            .get("value")
+                            .map(|s| s.to_string())
+                            .unwrap_or_default();
+
+                        db.lock()
+                            .unwrap()
+                            .insert("from".to_string(), from.to_string());
+                        db.lock().unwrap().insert("to".to_string(), to.to_string());
+                        db.lock()
+                            .unwrap()
+                            .insert("value".to_string(), value.clone());
 
                         let redirect_path =
                             format!("/conversion?value={}&from={}&to={}", value, from, to);
