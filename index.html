@@ -18,7 +18,7 @@
             }
 
             div {
-                width: 100%;
+                width: 50%;
                 display: flex;
                 justify-content: center;
                 gap: 10px;
@@ -28,6 +28,43 @@
                 font-size: 1.1rem;
             }
 
+            .tabs {
+                display: flex;
+                position: relative;
+                background-color: #333;
+                color: #eee;
+                box-shadow: 0 0 1px 0 rgba(#185ee0, .15) 0 6px 12px 0 rgba(#185ee0, .15);
+                padding: .75rem;
+                /*border-radius: 99px;*/
+                * {
+                    z-index: 2;
+                }
+                margin-bottom: 20px;
+            }
+
+            input[type="radio"] {
+                display: none;
+            }
+
+            .tab {
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                height: 54px;
+                width: 200px;
+                font-size: 1.25rem;
+                font-weight: 500;
+                border-radius: 99px;
+                cursor: pointer;
+            }
+
+            input[type="radio"] {
+                &:checked {
+                   & + label {
+                       color: #185ee0
+                   }
+                }
+            }
 
 
         </style>
@@ -36,17 +73,21 @@
         <header>
             <h1>Unit Converter</h1>
         </header>
-        <div>
-            <h3>Length</h3>
-            <h3>Weight</h3>
-            <h3>Temperature</h3>
+        <div class="tabs" id="tabs-unit">
+            <input type="radio" id="length" name="tabs" value="length"/>
+            <label class="tab" for="length">Length</label>
+            <input type="radio" id="weight" name="tabs" value="weight" checked/>
+            <label class="tab" for="weight">Weight</label>
+            <input type="radio" id="temperature" name="tabs" value="temperature"/>
+            <label class="tab" for="temperature">Temperature</label>
+            <span class="glider"></span>
         </div>
         <form id="myForm" method="post">
 
             <fieldset>
 
-                <label for="value_id">Value</label><br>
-                <input type="number" id="value_id" name="value" required><br><br>
+                <label for="value-id">Value</label><br>
+                <input type="number" id="value-id" name="value" required><br><br>
                 <!-- from unit dropdown -->
                 <label for="from">From Unit</label><br>
                 <select name="from_unit" id="from">
@@ -59,9 +100,9 @@
                 <!-- to unit dropdown -->
                 <label for="to">To Unit</label><br>
                 <select name="to_unit" id="to">
-                    <option value="kilogram" selected>Kilogram</option>
+                    <option value="kilogram">Kilogram</option>
                     <option value="pound">Pound</option>
-                    <option value="gram">Gram</option>
+                    <option value="gram" selected>Gram</option>
                     <option value="ounce">Ounce</option>
                     <option value="milligram">Milligram</option>
                 </select><br><br>
@@ -74,6 +115,66 @@
         <script>
 
             const form = document.getElementById('myForm');
+            const fromElements = document.getElementById('from');
+            const toElements = document.getElementById('to');
+            const tabs = document.querySelectorAll('input[type="radio"]');
+
+            let fromLength      = {
+              id: "from",
+              default: "Kilometer",
+              units: ["Mile", "Kilometer", "Meter", "Yard", "Feet", "Inch", "Centimeter", "Millimeter"],
+            };
+            let toLength        = {
+              id: "to",
+              default: "Meter",
+              units: ["Mile", "Kilometer", "Meter", "Yard", "Feet", "Inch", "Centimeter", "Millimeter"],
+            };
+            let fromWeight      = {
+              id: "from",
+              default: "Kilogram",
+              units: ["Pound", "Ounce", "Kilogram", "Gram", "Milligram"],
+            };
+            let toWeight        = {
+              id: "to",
+              default: "Gram",
+              units: ["Pound", "Ounce", "Kilogram", "Gram", "Milligram"],
+            };
+            let fromTemperature = {
+              id: "from",
+              default: "Celcius",
+              units: ["Celcius", "Fahrenheit", "Kelvin"],
+            };
+            let toTemperature   = {
+              id: "to",
+              default: "Fahrenheit",
+              units: ["Celcius", "Fahrenheit", "Kelvin"],
+            };
+
+            for (const tab of tabs) {
+              tab.addEventListener('change', e => {
+
+                console.log(e.target.value);
+                const fromElements = document.getElementById("from");
+                const toElements = document.getElementById("to");
+
+                if (e.target.value === 'length') {
+                  fromElements.replaceWith(buildSelectComponents(fromLength));
+                  toElements.replaceWith(buildSelectComponents(toLength));
+                }
+                else if (e.target.value === 'weight') {
+                  fromElements.replaceWith(buildSelectComponents(fromWeight));
+                  toElements.replaceWith(buildSelectComponents(toWeight));
+                }
+                else {
+                  fromElements.replaceWith(buildSelectComponents(fromTemperature));
+                  toElements.replaceWith(buildSelectComponents(toTemperature));
+                }
+
+                console.log(fromElements);
+
+
+              });
+            }
 
             const messageDiv = document.getElementById('message');
             form.addEventListener('submit', async (event) => {
@@ -104,6 +205,25 @@
                     messageDiv.textContent = 'Error: ' + error.message;
                 }
             });
+
+            function buildSelectComponents(data) {
+
+              let select = document.createElement("select");
+              select.id = data.id;
+              select.name = `${data.id}_unit`;
+
+              for (const unit of data.units) {
+                let option = document.createElement("option");
+                option.textContent = unit;
+                option.value = unit.toLowerCase();
+
+                if (unit === data.default) option.selected = true;
+
+                select.appendChild(option);
+              }
+              return select;
+
+            }
 
         </script>
     </body>

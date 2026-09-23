@@ -66,8 +66,12 @@ fn handle_connection(mut stream: TcpStream, db: Db) {
 fn display_result_page(stream: &mut TcpStream, db: Db) {
     let db_guard = db.lock().unwrap();
 
-    let value = db_guard
-        .get(&"value".to_string())
+    let result = db_guard
+        .get(&"result".to_string())
+        .cloned()
+        .unwrap_or_default();
+    let input = db_guard
+        .get(&"input".to_string())
         .cloned()
         .unwrap_or_default();
     let from = db_guard
@@ -76,7 +80,9 @@ fn display_result_page(stream: &mut TcpStream, db: Db) {
         .unwrap_or_default();
     let to = db_guard.get(&"to".to_string()).cloned().unwrap_or_default();
 
-    let args = format!("Value: {},\nFrom: {},\nTo: {}", value, from, to);
+    println!("result: {}", result);
+
+    let args = format!("Input : {} {},<br>Result: {} {}", input, from, result, to);
     let template = fs::read_to_string("result.html")
         .map(|s| s.replace("RUST", &args))
         .unwrap_or_default();
@@ -122,7 +128,7 @@ fn process_data(stream: &mut TcpStream, request: &Cow<'_, str>, db: Db) {
                 });
                 send_json_response(stream, 400, &error_json);
             }
-            Ok(value) => match ConversionData::run(value) {
+            Ok(json_value) => match ConversionData::run(json_value) {
                 None => {
                     eprintln!("Unit conversion error!");
                     let error_json = json!({
@@ -133,36 +139,35 @@ fn process_data(stream: &mut TcpStream, request: &Cow<'_, str>, db: Db) {
                     send_json_response(stream, 400, &error_json);
                 }
                 Some(data) => {
-                    let vals = data.get("data").unwrap_or_default().clone();
-                    println!("STORAGE: {}", vals);
+                    let from = data.get("from").and_then(|v| v.as_str()).unwrap();
+                    let to = data.get("to").and_then(|v| v.as_str()).unwrap();
+                    let result = data
+                        .get("result")
+                        .map(|s| s.to_string())
+                        .unwrap_or_default();
+                    let input = data.get("input").map(|s| s.to_string()).unwrap_or_default();
 
-                    if let Some(datas) = data.get("data") {
-                        println!("{}", datas.to_string());
+                    db.lock()
+                        .unwrap()
+                        .insert("from".to_string(), from.to_string());
+                    db.lock().unwrap().insert("to".to_string(), to.to_string());
+                    db.lock()
+                        .unwrap()
+                        .insert("input".to_string(), input.to_string());
+                    db.lock()
+                        .unwrap()
+                        .insert("result".to_string(), result.clone());
 
-                        let from = datas.get("from").and_then(|v| v.as_str()).unwrap();
-                        let to = datas.get("to").and_then(|v| v.as_str()).unwrap();
-                        let value = datas
-                            .get("value")
-                            .map(|s| s.to_string())
-                            .unwrap_or_default();
+                    let redirect_path = format!(
+                        "/conversion?input={}&result={}&from={}&to={}",
+                        input, result, from, to
+                    );
+                    let response = json!({
+                        "success": true,
+                        "redirect_url": redirect_path
+                    });
 
-                        db.lock()
-                            .unwrap()
-                            .insert("from".to_string(), from.to_string());
-                        db.lock().unwrap().insert("to".to_string(), to.to_string());
-                        db.lock()
-                            .unwrap()
-                            .insert("value".to_string(), value.clone());
-
-                        let redirect_path =
-                            format!("/conversion?value={}&from={}&to={}", value, from, to);
-                        let response = json!({
-                            "success": true,
-                            "redirect_url": redirect_path
-                        });
-
-                        send_json_response(stream, 200, &response);
-                    }
+                    send_json_response(stream, 200, &response);
                 }
             },
         }

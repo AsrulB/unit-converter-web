@@ -1,6 +1,5 @@
 use crate::unit::Length;
 use crate::unit::Temperature;
-// use crate::unit::Temperature::{Celcius, Fahrenheit, Kelvin};
 use crate::unit::Weight;
 use math::round;
 use ordered_float::OrderedFloat;
@@ -35,16 +34,13 @@ impl WeightData {
     fn convert(&self) -> Value {
         let base_value = self.value * self.from.rate();
         let result = base_value / self.to.rate();
-        let new_value = round::half_away_from_zero(*result, 3);
+        let result = round::half_away_from_zero(*result, 3);
 
         json!({
-            "success": true,
-            "message": "Length conversion success!",
-            "data": {
-                "value": new_value,
-                "from": self.from,
-                "to": self.to
-            }
+            "result": result,
+            "input": *self.value,
+            "from": self.from,
+            "to": self.to
         })
     }
 }
@@ -60,16 +56,13 @@ impl LengthData {
     fn convert(&self) -> Value {
         let base_value = self.value * self.from.rate();
         let result = base_value / self.to.rate();
-        let new_value = round::half_away_from_zero(*result, 3);
+        let result = round::half_away_from_zero(*result, 3);
 
         json!({
-            "success": true,
-            "message": "Length conversion success!",
-            "data": {
-                "value": new_value,
-                "from": self.from,
-                "to": self.to
-            }
+            "result": result,
+            "input": *self.value,
+            "from": self.from,
+            "to": self.to
         })
     }
 }
@@ -87,13 +80,10 @@ impl TemperatureData {
         let result = Temperature::from_kelvin(kelvin, self.to);
 
         json!({
-            "success": true,
-            "message": "Temperature conversion success!",
-            "data": {
-                "value": result,
-                "from": self.from,
-                "to": self.to
-            }
+            "result": result,
+            "input": *self.value,
+            "from": self.from,
+            "to": self.to
         })
     }
 }
