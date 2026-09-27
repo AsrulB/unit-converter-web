@@ -88,9 +88,7 @@ impl TemperatureData {
     }
 }
 
-pub struct ConversionData {
-    pub data: DataType,
-}
+pub struct ConversionData {}
 
 impl ConversionData {
     pub fn run(val: Value) -> Option<Value> {

@@ -98,21 +98,21 @@ fn display_result_page(stream: &mut TcpStream, db: Db) {
 }
 
 fn parse_request_line(request: &Cow<'_, str>) -> Option<(String, String)> {
-    let mut lines = request.lines();
-    let request_line = match lines.next() {
-        None => return None,
-        Some(line) => line,
-    };
+        let mut lines = request.lines();
+        let request_line = match lines.next() {
+            None => return None,
+            Some(line) => line,
+        };
 
-    let parts: Vec<&str> = request_line.split_whitespace().collect();
-    if parts.len() < 2 {
-        return None;
-    }
+        let parts: Vec<&str> = request_line.split_whitespace().collect();
+        if parts.len() < 2 {
+            return None;
+        }
 
-    let method = parts[0].to_string();
-    let path_and_query = parts[1].to_string();
+        let method = parts[0].to_string();
+        let path_and_query = parts[1].to_string();
 
-    Some((method, path_and_query))
+        Some((method, path_and_query))
 }
 
 fn process_data(stream: &mut TcpStream, request: &Cow<'_, str>, db: Db) {
